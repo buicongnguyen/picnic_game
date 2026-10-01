@@ -1,0 +1,42 @@
+{
+  "name": "picnic-game",
+  "version": "1.5.0",
+  "type": "module",
+  "description": "The Lantern Picnic: a cozy fruit-merge picnic story on a floating forest island. Light 2.5D stage on phones, Three.js 3D on strong PCs.",
+  "scripts": {
+    "dev": "node server.mjs",
+    "dev:mobile": "node server.mjs --lan",
+    "start": "node server.mjs",
+    "test": "node --test tests/picnic.test.mjs tests/picnic-wishes.test.mjs tests/lantern.test.mjs tests/lantern-life.test.mjs tests/audio.test.mjs tests/resources.test.mjs tests/i18n.test.mjs tests/shop.test.mjs tests/quality.test.mjs",
+    "test:lantern": "node tests/lantern-browser.mjs && node tests/lantern-stage2d-browser.mjs && node tests/lantern-regressions-browser.mjs && node tests/lantern-ui-browser.mjs",
+    "test:lantern:3d": "node tests/lantern-browser.mjs --quality=low && node tests/lantern-ui-browser.mjs --quality=low && node tests/lantern-languages-browser.mjs --quality=low",
+    "test:pages": "node tests/pages-browser.mjs",
+    "assets": "npm run assets:blender && npm run assets:icons && npm run assets:keyart",
+    "assets:blender": "node scripts/blender.mjs --background --factory-startup --python art/blender/build_lantern_picnic.py",
+    "assets:icons": "node scripts/blender.mjs --background --python art/blender/render_icons.py",
+    "assets:keyart": "node scripts/blender.mjs --background --python art/blender/render_keyart.py",
+    "assets:ui": "node scripts/blender.mjs --background --factory-startup --python art/blender/render_ui.py",
+    "assets:2d": "node tools/bake/run.mjs",
+    "assets:shop": "node scripts/blender.mjs --background --python art/blender/render_shop.py",
+    "assets:critters": "node scripts/blender.mjs --background --factory-startup --python art/blender/build_critters.py",
+    "assets:gallery": "node scripts/blender.mjs --background --python art/blender/build_asset_gallery.py",
+    "blender": "node scripts/blender.mjs --gui",
+    "mcp:install": "node scripts/blender-mcp-install.mjs",
+    "build": "node scripts/build.mjs",
+    "test:lantern:regressions": "node tests/lantern-regressions-browser.mjs",
+    "test:languages": "node tests/lantern-languages-browser.mjs",
+    "test:assets": "node tests/lantern-assets-browser.mjs"
+  },
+  "dependencies": {
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright": "1.61.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/buicongnguyen/picnic_game.git"
+  },
+  "homepage": "https://buicongnguyen.github.io/picnic_game/"
+}
