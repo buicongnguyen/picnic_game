@@ -12,6 +12,7 @@ import {Grass, windify, wind} from './engine/foliage.js';
 import {Character} from './engine/characters.js';
 import {shopItem, equipped} from './lantern-shop.js';
 import {approach, clamp, ease, random, Spring} from './engine/tween.js';
+import {Vfx3D} from './lantern-vfx3d.js';
 
 const TAU = Math.PI * 2;
 const REST_Y = 0.1, HELD_Y = 0.95;
@@ -106,6 +107,8 @@ export class LanternWorld {
     this.motes = new Drift({count: 140, color: '#fff3c8', area: [24, 5, 16], centre: [0, 2.2, 0], blinkRate: 0});
     this.flutter = new Flutter(420);
     this.fx.add(this.fireflies.points, this.motes.points, this.flutter.mesh);
+    // event VFX (flash, shockwave, stars, rays, dust): a pooled set of sprites, invisible while idle
+    this.vfx = new Vfx3D(); this.fx.add(this.vfx.group);
     this.setBudget();
 
     this.raycaster = new THREE.Raycaster(); this.pointer = new THREE.Vector2(); this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.09);
@@ -710,6 +713,7 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
           this.sparkles.burst(at, {color, count: 26 + big * 18, speed: 2.4 + big * 0.5, size: 0.26});
           this.sparkles.ring(this.world3(result.position, 0.12), {color: '#fff3c4', radius: 0.25, speed: 2.6 + big});
           if (result.chain > 1 || result.count > 2) this.sparkles.burst(at, {palette: ['#ffffff', '#ffe08a', color], count: 30, speed: 4, size: 0.2, up: 2});
+          this.vfx.play('merge', at, color, Math.min(3, Math.round(big)));
         }, 180);
         // bloom combo: each bonus fruit blossoms out of a golden swirl
         if (result.bonus) result.outputs.slice(1).forEach((out, k) => setTimeout(() => {
@@ -725,7 +729,7 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
     } else if (result.type === 'serve') {
       setTimeout(() => {
         this.guest?.react('eat');
-        if (!quiet) this.sparkles.rise(this.plate.position.clone().add(new THREE.Vector3(0, 0.4, 0)), {color: '#ff9fb8', count: 14, spread: 0.6});
+        if (!quiet) { const p = this.plate.position.clone().add(new THREE.Vector3(0, 0.4, 0)); this.sparkles.rise(p, {color: '#ff9fb8', count: 14, spread: 0.6}); this.vfx.play('serve', p, '#ffb3c8'); }
       }, 380);
     } else if (result.type === 'share') {
       setTimeout(() => { if (!quiet) this.sparkles.rise(this.plate.position.clone().add(new THREE.Vector3(0, 0.3, 0)), {color: '#ffffff', count: 6}); }, 380);
@@ -733,7 +737,7 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
       setTimeout(() => {
         const slot = this.skewerSlot(Math.max(0, this.state.journey.skewer.length - 1));
         if (!quiet) this.sparkles.burst(slot, {color: '#ffe3a0', count: 12, speed: 1.2, size: 0.18, up: 0.8});
-        if (result.served) { this.guest?.react('hop'); if (!quiet) this.sparkles.burst(this.stick.position.clone().add(new THREE.Vector3(0, 0.4, 0)), {color: '#ffd166', count: 40, speed: 2.4}); }
+        if (result.served) { this.guest?.react('hop'); if (!quiet) { const p = this.stick.position.clone().add(new THREE.Vector3(0, 0.4, 0)); this.sparkles.burst(p, {color: '#ffd166', count: 40, speed: 2.4}); this.vfx.play('serve', p, '#ffd166'); } }
       }, 380);
     } else if (result.type === 'basket') {
       this.basketBounce = this.time;
@@ -758,6 +762,7 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
     setTimeout(() => {
       this.sparkles.burst(at, {color: '#ffcf6b', count: 70, speed: 3, size: 0.32, up: 1});
       this.sparkles.rise(at, {color: '#ffe7a8', count: 24, spread: 0.6});
+      this.vfx.play('lit', at, '#ffcf6b');
       this.flutter.confetti(at.clone().setY(at.y + 0.2), {count: 90, spread: 0.8, speed: 4});
     }, 900);
     if (finale) this.finale();
@@ -1137,7 +1142,7 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
         const from = v.delivery.from;
         v.pos.lerpVectors(from, target, ease.outCubic(k));
         v.pos.y += Math.sin(k * Math.PI) * 2.0;
-        if (k >= 1) { v.delivery = null; v.squash.kick(-5); if (!quiet) this.sparkles.ring(target.clone().setY(0.12), {count: 14, radius: 0.15, speed: 1.6, size: 0.14, color: '#ffffff'}); this.callbacks.onLand?.(f); }
+        if (k >= 1) { v.delivery = null; v.squash.kick(-5); if (!quiet) { this.sparkles.ring(target.clone().setY(0.12), {count: 14, radius: 0.15, speed: 1.6, size: 0.14, color: '#ffffff'}); this.vfx.play('land', target.clone().setY(0.12)); } this.callbacks.onLand?.(f); }
       } else {
         if (t < v.born) { v.holder.visible = false; continue; }
         v.holder.visible = true;
@@ -1237,6 +1242,7 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
     }
     this.sparkles.update(dt);
     this.flutter.update(dt, t);
+    this.vfx.update(dt, quiet);
     this.life?.update(dt, quiet);
     if (this.rippleMap && !quiet) this.rippleMap.offset.set(t * 0.012, t * 0.007);
 

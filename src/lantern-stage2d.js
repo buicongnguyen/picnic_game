@@ -14,6 +14,7 @@ import {t} from './lantern-i18n.js';
 import {approach, clamp, ease, lerp, random, Spring} from './engine/tween.js';
 import {HourLife} from './lantern-life-hours.js';
 import {Life2D} from './lantern-life.js';
+import {Vfx2D} from './lantern-vfx.js';
 
 const TAU = Math.PI * 2, REST_Y = 0.1, HELD_Y = 0.95;
 export const FRIENDS = ['pip', 'momo', 'nori', 'juniper', 'bramble'];
@@ -345,6 +346,8 @@ export class Stage2D {
     this.frame = {width: 14, depth: 9.8}; this.width = 1; this.height = 1; this.dpr = 1;
     this.touchDevice = matchMedia('(pointer: coarse)').matches;
     // small living details: koi and butterflies (lantern-life.js), and the life of each hour (lantern-life-hours.js)
+    // event VFX (flash, shockwave, stars, rays, dust): pooled baked sprites, nothing drawn while idle
+    this.vfx = new Vfx2D(); this.vfxProject = (x, y, z) => this.imagePoint(x, y, z); this.vfxUnit = (x, y, z) => this.unit(x, y, z);
     this.life = new Life2D({budget: this.touchDevice ? 0.6 : 1});
     this.hours = new HourLife({seed: 7, budget: this.touchDevice ? 0.6 : 1});
     this.lanternGlow = {getHexString: () => 'ffd37a'};
@@ -742,6 +745,7 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
           this.fx.burst(img(at), {color, count: 26 + big * 18, speed: 2.4 + big * 0.5, size: 0.26}, u(at));
           this.fx.ring(img(this.world3(result.position, 0.12)), {color: '#fff3c4', radius: 0.25, speed: 2.6 + big}, u(at));
           if (result.chain > 1 || result.count > 2) this.fx.burst(img(at), {palette: ['#ffffff', '#ffe08a', color], count: 30, speed: 4, size: 0.2, up: 2}, u(at));
+          this.vfx.pool.play('merge', at.x, at.y, at.z, color, Math.min(3, Math.round(big)));
         }, 180);
         // bloom combo: each bonus fruit blossoms out of a golden swirl
         if (result.bonus) result.outputs.slice(1).forEach((out, k) => setTimeout(() => {
@@ -755,14 +759,14 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
       }
       if (result.chain > 1 || result.count > 3) this.cheerAll('hop');
     } else if (result.type === 'serve') {
-      setTimeout(() => { this.guest?.react('eat'); const p = this.anchorPoint('plate', 0.4); if (!quiet) this.fx.rise(img(p), {color: '#ff9fb8', count: 14, spread: 0.6}, u(p)); }, 380);
+      setTimeout(() => { this.guest?.react('eat'); const p = this.anchorPoint('plate', 0.4); if (!quiet) { this.fx.rise(img(p), {color: '#ff9fb8', count: 14, spread: 0.6}, u(p)); this.vfx.pool.play('serve', p.x, p.y, p.z, '#ffb3c8'); } }, 380);
     } else if (result.type === 'share') {
       setTimeout(() => { const p = this.anchorPoint('plate', 0.3); if (!quiet) this.fx.rise(img(p), {color: '#ffffff', count: 6}, u(p)); }, 380);
     } else if (result.type === 'skewer') {
       setTimeout(() => {
         const slot = this.skewerSlot(Math.max(0, this.state.journey.skewer.length - 1));
         if (!quiet) this.fx.burst(img(slot), {color: '#ffe3a0', count: 12, speed: 1.2, size: 0.18, up: 0.8}, u(slot));
-        if (result.served) { this.guest?.react('hop'); const p = this.anchorPoint('skewer', 0.4); if (!quiet) this.fx.burst(img(p), {color: '#ffd166', count: 40, speed: 2.4}, u(p)); }
+        if (result.served) { this.guest?.react('hop'); const p = this.anchorPoint('skewer', 0.4); if (!quiet) { this.fx.burst(img(p), {color: '#ffd166', count: 40, speed: 2.4}, u(p)); this.vfx.pool.play('serve', p.x, p.y, p.z, '#ffd166'); } }
       }, 380);
     } else if (result.type === 'move') this.fruits.get(result.fruit.id)?.squash.kick(-3);
   }
@@ -788,6 +792,7 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
         this.fx.burst(o, {color: '#ffcf6b', count: 70, speed: 3, size: 0.32, up: 1}, u);
         this.fx.rise(o, {color: '#ffe7a8', count: 24, spread: 0.6}, u);
         this.fx.confetti({x: o.x, y: o.y - u * 0.2}, {count: 90, spread: 0.8, speed: 4}, u);
+        this.vfx.pool.play('lit', a.origin.x, a.origin.y + 0.4, a.origin.z, '#ffcf6b');
       }, 900);
     }
     if (finale) this.finale();
@@ -993,6 +998,7 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
     this.fire = approach(this.fire, this.fireTarget, dt, 0.8);
     this.fx.budget = this.touchDevice ? 0.6 : 1;
     this.fx.update(dt);
+    this.vfx.pool.quiet = quiet; this.vfx.pool.update(dt);
     this.stepAmbient(dt, quiet);
     this.life.update(dt, quiet);
     this.hours.update(dt, quiet, this.lanterns);
@@ -1027,7 +1033,7 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
         v.pos.x = lerp(from.x, target.x, e); v.pos.z = lerp(from.z, target.z, e); v.pos.y = lerp(from.y, target.y, e) + Math.sin(k * Math.PI) * 2.0;
         if (k >= 1) {
           v.delivery = null; v.squash.kick(-5);
-          if (!quiet) this.fx.ring(this.imagePoint(target.x, 0.12, target.z), {count: 14, radius: 0.15, speed: 1.6, color: '#ffffff'}, this.unit(target.x, 0.12, target.z));
+          if (!quiet) { this.fx.ring(this.imagePoint(target.x, 0.12, target.z), {count: 14, radius: 0.15, speed: 1.6, color: '#ffffff'}, this.unit(target.x, 0.12, target.z)); this.vfx.pool.play('land', target.x, 0.12, target.z); }
           this.callbacks.onLand?.(f);
         }
       } else {
@@ -1155,6 +1161,7 @@ window.addEventListener('mobile-game-interruption', () => this.cancel());
       }
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
     }
+    this.drawCalls += this.vfx.draw(ctx, v, this.dpr, this.vfxProject, this.vfxUnit);
     this.fx.draw(ctx, v, this.dpr);
   }
   glowAt(ctx, p, r, alpha) {
