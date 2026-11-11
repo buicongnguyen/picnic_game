@@ -30,7 +30,8 @@ export class Vfx3D {
       if (!st || st.alpha < 0.01) { obj.visible = false; continue; }
       const m = obj.material;
       if (m.userData.kind !== s.kind) { m.map = this.tex[s.kind]; m.blending = s.kind === 'puff' ? THREE.NormalBlending : THREE.AdditiveBlending; m.needsUpdate = true; m.userData.kind = s.kind; }
-      m.color.set(s.color); if (s.kind !== 'puff') m.color.multiplyScalar(1.6); // past tone mapping, so they glow obj.material.opacity = Math.min(1, st.alpha);
+      m.color.set(s.color); if (s.kind !== 'puff') m.color.multiplyScalar(1.6); // past tone mapping, so they glow
+      m.opacity = Math.min(1, st.alpha);
       obj.position.set(st.x, st.y + (s.flat ? 0.02 : 0), st.z);
       if (s.flat) { obj.scale.set(st.size, 1, st.size); obj.rotation.y = s.rot; } else { obj.scale.setScalar(st.size); obj.material.rotation = s.rot; }
       obj.visible = true;
